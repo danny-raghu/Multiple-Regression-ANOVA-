@@ -1,0 +1,259 @@
+---
+title: "1994206_a21"
+output:
+  pdf_document:
+    toc: no
+  html_document:
+    highlight: espresso
+    theme: paper
+    toc: yes
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(tidyverse)
+library(ggplot2)
+library(cowplot)
+library(afex)
+library(emmeans)
+
+#Reading the data
+d1 <- read_csv('self_other_judgments.csv')
+d2 <- read_csv("wtp_factorial.csv")
+```
+
+Task 1
+--------------
+
+Section 1
+--------------
+
+How well do value judgement of **others** predict the value judgement of **self** for the same object? To answer this question, we asked 250 participants to judge the value of a box of chocolates for themselves(variable self) and others(variable other). Furthermore, the questions were asked in two different frames, one where they were asked how much they would be willing to pay (WTP group) for the box of chocolates (and how much others would), and the other in which they would say how much they would enjoy (Enjoy group) the box of chocolates (and how much others would). We also changed the order in which they would give their answer, which is either Self-first or Other-first.
+
+To answer this question, we ran a simple regression model with **other** as independent variable and **self** as a dependent variable. We observed that, a unit increase in **other** was associated with an average increase of 0.98 in **self**, *t(248)* = 26.13, *p* < 0.001, $R^2$ = 0.73. So, we conclude that other-judgements do predict self-judgements.
+
+```{r, echo=FALSE}
+p1 <- d1 %>% ggplot(aes(x=other, y= self)) +
+  geom_point(aes(color = task), show.legend = F)+
+  geom_smooth(method = "lm")+
+  labs(title = "Overall model")
+
+p2 <- d1 %>% filter(task == "WTP") %>%
+  ggplot(aes(x= other, y=self))+
+  geom_point(color = "blue", show.legend = F)+
+  geom_smooth(method = "lm")+
+  labs(title = "WTP")+
+  coord_cartesian(ylim = c(0,100))
+
+p3 <- d1 %>% filter(task == "Enjoy") %>%
+  ggplot(aes(x= other, y=self))+
+  geom_point(color = "red", show.legend = F)+
+  geom_smooth(method = "lm")+
+  labs(title = "Enjoy")
+```
+
+
+```{r}
+cowplot::plot_grid(p1,p2,p3, ncol = 2)+
+  labs(caption = "abc")
+```
+
+
+As we see from the figure, the effect of **other** depends on the value of **task** variable. So, we could visually see that there is some interaction between **task** and **other**. To quantify this relation, we ran an interaction model and indeed found that the interaction is significant, *t(246)* = 2.86, *p* = 0.004. Thus, we could conclude that **other** does not predict **self** equally in both levels of 'task'.
+
+Furthermore, we observed that, if the order of answering was 'Self-first', there was a 7% increase in $R^2$ value and if it was 'Other-first', a 7% decrease in $R^2$ value for the 'Enjoy' group. Whereas in the 'WTP' group, there was an increase of 1.3% in $R^2$ value when the ordering was 'Other-first' and a decrease of 3.15% when it was 'Self-first'. Further research in this area could produce some interesting results.
+
+
+
+Section-2
+--------------
+
+```{r, echo=TRUE}
+
+d1 <- d1 %>% mutate( task = factor(task), Order = factor(Order))
+d1 <- d1[!duplicated(d1$pid),]
+
+#Exploring the data
+
+#Seeing if there is any visual difference in 'Enjoy' and 'WTP'
+d1 %>% ggplot(aes(x=other, y= self)) +
+  geom_point(aes(color = task))
+#Take away : WTP values are significantly lower than Enjoy values (for both Self and Other)
+
+#Running the model with all data points
+whole_model <- lm(self~other, data = d1)
+summary(whole_model)
+#Take away: 'Other' is significant. R^2 value : 0.735
+
+#Checking if inclusion of 'task' makes any difference
+model <- lm(self ~ other * task, data = d1)
+summary(model)
+#Take away : Interaction seem statistically significant for this model. R^2 value = 0.75
+
+
+#Plotting all the information that we have got
+p1 <- d1 %>% ggplot(aes(x=other, y= self)) +
+  geom_point(aes(color = task))+
+  geom_smooth(method = "lm")+
+  labs(title = "Overall model")
+
+p2 <- d1 %>% filter(task == "WTP") %>%
+  ggplot(aes(x= other, y=self))+
+  geom_point(color = "blue", show.legend = F)+
+  geom_smooth(method = "lm")+
+  labs(title = "WTP")+
+  coord_cartesian(ylim = c(0,100))
+
+p3 <- d1 %>% filter(task == "Enjoy") %>%
+  ggplot(aes(x= other, y=self))+
+  geom_point(color = "red", show.legend = F)+
+  geom_smooth(method = "lm")+
+  labs(title = "Enjoy")
+  
+
+
+#Models for WTP
+
+d_WTP <- d1 %>% filter(task == "WTP")
+model_WTP <- lm(self ~ other, data = d_WTP)
+summary(model_WTP)
+
+dummy_wtp_self <- d1 %>% filter(task == "WTP", Order == "Self First") 
+dummy_model_wtp_self <- lm(self ~ other, data = dummy_wtp_self)
+summary(dummy_model_wtp_self)
+
+dummy_wtp_other <- d1 %>% filter(task == "WTP", Order == "Other First") 
+dummy_model_wtp_other <- lm(self ~ other, data = dummy_wtp_other)
+summary(dummy_model_wtp_other)
+
+#Visualising the above two models 
+ggplot(d_WTP, aes(x= other, y=self))+
+  geom_point(aes(color = Order))
+
+#Models for Enjoy
+
+d_enjoy <- d1 %>% filter(task == "Enjoy")
+model_enjoy <- lm(self ~ other, data = d_enjoy)
+summary(model_enjoy)
+
+dummy_enjoy_other <- d1 %>% filter(task == "Enjoy", Order == "Other First") 
+dummy_model_enjoy_other <- lm(self ~ other, data = dummy_enjoy_other)
+summary(dummy_model_enjoy_other)
+
+dummy_enjoy_self <- d1 %>% filter(task == "Enjoy", Order == "Self First") 
+dummy_model_enjoy_self <- lm(self ~ other, data = dummy_enjoy_self)
+summary(dummy_model_enjoy_self)
+
+#Visualising the above two models
+ggplot(d_enjoy, aes(x= other, y = self))+
+  geom_point(aes(color = Order))
+
+
+
+```
+
+Task-2
+---------------
+
+Section-1
+---------------
+
+Which is a better predictor of people's preferences? Is it **absolute** rank or **relative** rank of a product? To investigate this question, we stimulated a factorial experiment with three factors and one dependent variable,  **wtp**, which elicited the participant's preferences. Each object was given a *rank* which had three levels namely, 'low', 'medium', 'high' and a *type* for each *rank*, which was either 'absolute' or 'relative'. Furthermore, data were collected from two populations; one was 'economists' and the other was 'general'.  
+
+To answer this question, we analysed the data using two ANOVA models which were split across the factor **population**. We used **wtp** as the dependent variable with **type** and **rank** as the between-subject factors. For the ANOVA model with 'general' population, we found that main effect of **rank** was significant, *t(114)* = 7.88, *p* < 0.001 and the main effect of *type* being marginally insignificant with, *t(114)* = 3.27, *p* = 0.07. However, we also found the interaction between *type* and *rank* to be highly significant, *t(114)* = 5.31, *p* = 0.006. For the 'economists' population, the main effect of *rank* was found to be significant, *t(114)* = 25.75, *p* < 0.001 and the interaction term had a *p*-value of 0.10 with *t(114)* = 2.40. In light of these results, follow-up tests were done.
+
+
+```{r, echo=FALSE}
+
+#Changing into factors with different names
+d2 <- d2 %>% mutate(population_1 = ifelse(population == "general", 1, 2), rank_1 = ifelse(rank == "low", 1, ifelse(rank == "medium", 2,3)), population_1 = factor(population_1, levels = 1:2, labels = c("general","economists")), rank_1 = factor(rank_1, levels = 1:3, labels = c("low","medium","high")), type = factor(type)) %>% select(-c(population,rank)) 
+
+#Changing back to original names
+d2 <- d2 %>% mutate(population = population_1, rank = rank_1) %>% select(id,type,population,rank,wtp)
+
+
+d2_general <- d2 %>% filter(population == "general")
+d2_economists <- d2 %>% filter(population == "economists")
+
+anova1 <- aov_car(data = d2_general, formula = wtp ~ type * rank + Error(id))
+anova2 <- aov_car(data = d2_economists, formula = wtp ~ type * rank + Error(id))
+
+an1 <- afex_plot(anova1, x = "type", trace = "rank", mapping = c("color", "linetype"))
+an2 <- afex_plot(anova2, x = "type", trace = "rank", mapping = c("color", "linetype"))
+```
+
+```{r}
+cowplot::plot_grid(an1, an2, labels = c("Only General", "Only Economists"), label_size = 7.5, label_colour = "blue", label_x = 0.2, label_y = 0.99)
+```
+
+As we could see from the above figure, 'relative' low ranked objects had lower **wtp** elicitations than 'absolute' low ranked objects. Also, 'relative' high ranked objects had greater **wtp** elicitations than 'absolute' high ranked objects for the general population. For the 'economists' population, we observe the exact opposite trend in high rank and low rank objects. We ran three contrasts for each of the three ranks on both the ANOVA models to check if the differences between 'absolute' and 'relative' are statistically significant. The only significant contrast was the difference between **absolute high rank** and **relative high rank** in the 'general' population, *t(114)* = 3.433, *p* = 0.002. We adjusted the *p*-value using Bonferroni-Holm correction to control for multiple testing.
+
+Based on these results, we could conclude that there is no overwhelming evidence to say that **relative** rank is a better predictor of preferences than **absolute** rank. Only in the case of 'general' population and more specifically, for 'high ranked' objects have we found some significant difference between **absolute** and **relative** rank. So, we do not have enough evidence to say, **relative** rank is a better predictor than **absolute** rank or vice-versa.
+
+Section-2
+-----------------
+```{r, echo=TRUE}
+
+
+#Changing into factors with different names
+d2 <- d2 %>% mutate(population_1 = ifelse(population == "general", 1, 2), rank_1 = ifelse(rank == "low", 1, ifelse(rank == "medium", 2,3)), population_1 = factor(population_1, levels = 1:2, labels = c("general","economists")), rank_1 = factor(rank_1, levels = 1:3, labels = c("low","medium","high")), type = factor(type)) %>% select(-c(population,rank)) 
+
+#Changing back to original names
+d2 <- d2 %>% mutate(population = population_1, rank = rank_1) %>% select(id,type,population,rank,wtp)
+
+#Exploring the data to see some patterns
+a1 <- d2 %>%
+  ggplot(aes(y = wtp, x= population)) +
+  geom_jitter(aes(color = rank), width = 0.1)
+
+a2 <- d2 %>% filter(type == "absolute") %>%
+  ggplot(aes(y = wtp, x= population)) +
+  geom_jitter(aes(color = rank), width = 0.1)
+
+a3 <- d2 %>% filter(type == "relative") %>%
+  ggplot(aes(y = wtp, x= population)) +
+  geom_jitter(aes(color = rank), width = 0.1)+
+  coord_cartesian(ylim = c(0,40))
+
+cowplot::plot_grid(a1,a2,a3, labels = c("Aggregated", "Only Absolute", "Only Relative"), label_size = 10, label_colour = "blue", label_x = 0.3, label_y = 0.98)
+
+a4 <- d2 %>%
+  ggplot(aes(y = wtp, x= type)) +
+  geom_jitter(aes(color = rank), width = 0.1)
+
+a5 <- d2 %>% filter(population == "general") %>%
+  ggplot(aes(y = wtp, x= type)) +
+  geom_jitter(aes(color = rank), width = 0.1)
+
+a6 <- d2 %>% filter(population == "economists") %>%
+  ggplot(aes(y = wtp, x= type)) +
+  geom_jitter(aes(color = rank), width = 0.1)
+
+cowplot::plot_grid(a4,a4,a6, labels = c("Aggregated", "Only General", "Only Economists"), label_size = 10, label_colour = "blue", label_x = 0.3, label_y = 0.98)
+
+#Trying out ANOVA with interaction 
+d2_general <- d2 %>% filter(population == "general")
+d2_economists <- d2 %>% filter(population == "economists")
+
+anova1 <- aov_car(data = d2_general, formula = wtp ~ type * rank + Error(id))
+anova2 <- aov_car(data = d2_economists, formula = wtp ~ type * rank + Error(id))
+
+an1 <- afex_plot(anova1, x = "type", trace = "rank", mapping = c("color", "linetype"))
+an2 <- afex_plot(anova2, x = "type", trace = "rank", mapping = c("color", "linetype"))
+
+anova1
+anova2
+
+em1 <- emmeans(anova1, c("type","rank"))
+em2 <- emmeans(anova2, c("type","rank"))
+
+contr <- list(al_vs_rl = c(1,-1,0,0,0,0), am_vs_rm = c(0,0,1,-1,0,0), ah_vs_rh = c(0,0,0,0,-1,1))
+contrast(em1, contr, adjust = "holm")
+contrast(em2, contr, adjust = "holm")
+
+
+
+```
+
